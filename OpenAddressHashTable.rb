@@ -154,8 +154,6 @@ class HashTable
 		#change value to DELETE or keep looking
 		if count <= @size
 			if @array[index][0]==key
-			    puts "did this happen"
-			    puts "key == #{key}"
 				@array[index]="DELETE"
 				@num_elements -=1
 				if @num_elements <= @size/4
@@ -301,8 +299,8 @@ class TestHashTable <Test::Unit::TestCase
     def test_search
         hash = HashTable.new(10)
         #can it find an inserted value?
-        hash.insert("key","value")
-        assert_equal(hash.search("key"),"value")
+        hash["key"]="value"
+        assert_equal(hash["key"],"value")
         
         #does it return nil when key not found?
         assert_equal(hash.search("nokey"),nil)   
