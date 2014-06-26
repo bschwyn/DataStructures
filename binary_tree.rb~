@@ -75,8 +75,6 @@ class BinaryTree
         end
     end
     
-    
-    #totallly should NOT work
     def search(key, source_key = self.root.key)       
         if key < source_key
             search(key,root.left.key)
@@ -87,8 +85,9 @@ class BinaryTree
         end
     end
     
-    def search2(key,source_key,pointer = self.root) #source_key = self.root.key
-           
+    def search2(key,source_key = self.root.key,pointer = self.root)
+      
+        
         if source_key < pointer.key 
             search2(key,source_key,pointer.left)
         elsif source_key == pointer.key
