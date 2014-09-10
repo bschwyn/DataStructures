@@ -5,7 +5,7 @@ require "test/unit"
 require "rubygems"
 require "pry"
 
-
+#The node class is what the tree is made out of. It contains data and pointers
 class Node
     attr_reader :key
     attr_accessor :data, :parent, :left, :right
@@ -21,38 +21,42 @@ end
 
 
 class BinaryTree
-    attr_accessor :root
+    attr_accessor :root, :node_list
     
     def initialize(root_key = nil,data = nil)
         if root_key == nil
             @root = nil
             @size = 0
+            @node_list = {}
         else
             @root = Node.new(root_key,data)
+            @node_list = {root_key => @root}
             @size = 1
         end
     end
     
-        def insert(key, data=nil)
+    def insert(key, data=nil)
+    
         node = Node.new(key, data)
+        @node_list[key] = node
         trailing_pointer = nil #parent of pointer
         pointer = self.root
-            
-            
+           
+        #the while loop traces a path downward with pointer and trailing pointer, until there is an open place for the new node.    
         while pointer != nil && node.key != pointer.key
             trailing_pointer = pointer
-            #check if newNode goes to the left or right of the root 
-            #trace path downward until there is an open place for the new node
             if node.key < pointer.key
                 pointer = pointer.left                
             else
                 pointer = pointer.right
             end
         end
+        
         #set parent of newnode 
         node.parent = trailing_pointer
         
-        #reset connections for a replacement
+        #if the insertion had the same key value as something previously in the tree, it is a replacement
+        #the children of the the old key value need their parent pointers stored
         if pointer != nil
             if pointer.left != nil
                 pointer.left.parent = node
@@ -75,74 +79,95 @@ class BinaryTree
         end
     end
     
-    def search(key, source_key = self.root.key)       
-        if key < source_key
-            search(key,root.left.key)
-        elsif key == source_key
-            return key
+    
+
+    def searchold(key,source_key = self.root.key, pointer = self.root)
+        if pointer != nil #check to see if the source_key has been found
+        #then use a pointer to go down and search for the source_key
+        #this is pretty pointless, and doesn't save any time
+        #better to always search from root, or find an alternative
+            if source_key < pointer.key 
+                search(key,source_key,pointer.left)
+            elsif source_key == pointer.key
+                node = _get(key,pointer)
+                if node != nil
+                    return node.key
+                else
+                    nil
+                end
+            else
+                search(key,source_key,pointer.right) 
+            end
+            
         else
-            search(key,root.right.key)
+            return nil
+        end
+        
+    end
+    
+    def search(key,source_key = self.root.key)
+        source = self.node_list[source_key]
+        node = _get(key,source)
+        if node!= nil
+            return node.key
+        else
+            nil
         end
     end
     
-    def search2(key,source_key = self.root.key,pointer = self.root)
-      
-        
-        if source_key < pointer.key 
-            search2(key,source_key,pointer.left)
-        elsif source_key == pointer.key
-            _get(key,pointer)
-        else
-            search2(key,source_key,pointer.right) 
-        end
-    end    
-    
-    def _get(key, source = self.root)
+    def _get(key, source)
     #returns node
-        if key < source.key
-            _get(key,root.left)
-        elsif key == source.key
-            return source
+        if source != nil
+            if key < source.key
+                _get(key,source.left)
+            elsif key == source.key
+                return source
+            else
+                _get(key,source.right)
+            end
         else
-            _get(key,root.right)
+            return nil
         end
     end 
-        
+    
+    #finds minimum
     def minimum(node)
         while node.left.key !=nil
             node = node.left.key
         end
     end
     
-    
-    #totally should not work because of ignoring difference between nodes and keys
-    def delete(node)
-        def transplant(u, v)
-            #replaces subtree rooted at node u with subtree rooted at v
-                            #update connection pointing down to v
-            if u.parent == nil #is u the root? Make it v
-                self.root = v
-            elsif u == u.parent.left #is u a left child
-                u.parent.left = v #u's parent becomes v's parent
-            else
-                u.parent.right = v #u is a right child
-            end
-             
-            #update connection pointing up from v
-            if v !=nil
-                v.parent = u.parent
-            end
+    def _transplant(u, v)
+        #replaces subtree rooted at node u with subtree rooted at node v
+        #switches root pointer to v if necessary
+        if u.parent == nil
+            self.root = v
+        #switches left pointer to v if necessary
+        elsif u == u.parent.left
+            u.parent.left = v
+        #switches right pointer to v if necessary
+        else
+            u.parent.right = v
         end
+        #switches parent pointer
+        if v != nil
+            v.parent = u.parent
+        end
+    end
+    
+    def delete(key)
+        node = self.node_list[key]
     
         parent = node.parent
         if node.left == nil #goes for case when node.right == nil also
-            transplant(node, node.right)
+            self._transplant(node, node.right)
         elsif node.right==nil
-            transplant(node, node.left)
+            self._transplant(node, node.left)
         else
             y = minimum(node.right)
+            #not sure what is going on here
             if y.parent != node
-                transplant(y,y.right)
+                self._transplant(y,y.right)
                 y.right = node.right
                 y.right.parent = y
             end
@@ -150,8 +175,8 @@ class BinaryTree
             y.left = node.left
             y.left.parent = y
         end
-    end         
-    
+    end       
+        
     def inorder_tree_walk(node)
         if node != nil
             inorder_tree_walk(node.left)
@@ -180,13 +205,14 @@ class BinaryTree
         end
     end
     
-    def is_bst(node = self.root, min = -500, max = 500)
-        if node.key == nil
+    #figure out how to do sentinels of -inf, +inf
+    def is_bst(node = self.root, min = -1000, max = 1000)
+        if node == nil
             true
         elsif node.key < min || node.key > max
             false
         else
-            is_bst(node.left, min, pointer.key)
+            is_bst(node.left, min, node.key)
             is_bst(node.right,node.key,max)
         end
     end
@@ -211,6 +237,7 @@ class TestBinaryTree <Test::Unit::TestCase
         assert_equal(x.root.parent,nil)
         assert_equal(x.root.left, nil)
         assert_equal(x.root.right, nil)    
+        assert_equal(x.node_list[1],x.root)
         
     end
     
@@ -219,14 +246,17 @@ class TestBinaryTree <Test::Unit::TestCase
         tree = BinaryTree.new()
         tree.insert(5)
         assert_equal(tree.root.key,5)
+        assert_equal(tree.node_list[5],tree.root)
         
         #internals
         tree.insert(4)
         assert_equal(tree.root.left.key,4)
+        assert_equal(tree.root.left,tree.node_list[4])
         assert_equal(5,tree.root.left.parent.key)
         tree.insert(6)
         assert_equal(tree.root.right.key,6)
         assert_equal(tree.root.right.data,nil)
+        assert_equal(tree.root.right,tree.node_list[6])
         assert_equal(5, tree.root.right.parent.key)
         
         #externals
@@ -284,35 +314,40 @@ class TestBinaryTree <Test::Unit::TestCase
         assert_equal(btree.search(5,5),5)
         btree.insert(18)
         assert_equal(btree.search(18),18)
-        #assert_equal(btree.search(18,5),18)
-        #assert_equal(btree.search(18,18),18)
+        assert_equal(btree.search(18,5),18)
+        assert_equal(btree.search(18,18),18)
         btree.insert(2)
-        #assert_equal(btree.search(2,5),2)
+        assert_equal(btree.search(2,5),2)
         assert_equal(btree.search(2),2)
-        #assert_equal(btree.search(2,2),2)
+        assert_equal(btree.search(2,2),2)
         btree.insert(9)
         assert_equal(btree.search(9),9)
-        #btree.insert(15)
-        #assert_equal(btree.search(15),15)
-        #btree.insert(19)
-        #btree.insert(17)
-        #btree.insert(1)
-        #btree.insert(3)
-        #btree.insert(7)
-        #btree.insert(11)
-        #btree.insert(8)
-        #btree.insert(111)
-        #assert_equal(btree.search),15)        
-    #    assert_equal(btree.search(12,10000),nil)
+        btree.insert(15)
+        assert_equal(btree.search(15),15)
+        assert_equal(btree.search(15,9),15)
+        assert_equal(btree.search(15,18),15)
+        btree.insert(19)
+        btree.insert(17)
+        btree.insert(1)
+        btree.insert(3)
+        btree.insert(7)
+        btree.insert(11)
+        btree.insert(8)
+        btree.insert(111)
+        assert_equal(btree.search(15),15)        
+        assert_equal(btree.search(12,499),nil)
+        assert_equal(btree.search(132),nil)
         #some way to test log n?
         #some way to test in_order_tree_walk?
     end
     
     def test_is_btree
         
-        btree = BinaryTree.new()
-        
+        btree = BinaryTree.new(5)
+        assert_equal(btree.is_bst(),true)
+             
         btree.insert(12)
+        assert_equal(btree.is_bst(),true)
         btree.insert(5)
         btree.insert(18)
         btree.insert(2)
@@ -327,8 +362,34 @@ class TestBinaryTree <Test::Unit::TestCase
         btree.insert(8)
         btree.insert(111)
         
-        assert_equal(btree.is_bst(12),true)
+        assert_equal(btree.is_bst(),true)
        #btree.inorder_tree_walk(node12)
+    end
+    
+    def test_delete
+        b = BinaryTree.new(10)
+        b.insert(5)
+        b.insert(15)
+        b.insert(7)
+        b.delete(5)
+        assert_equal(b.root.left.key,7)
+        b.insert(12)
+        b.delete(15)
+        assert_equal(b.root.right.key,12)
+        
+        c = BinaryTree.new(10)
+        c.insert(5)
+        c.insert(20)
+        c.insert(15)
+        c.insert(25)
+        c.insert(30)
+        
+        c.delete(20)
+        #assert_equal(c.root.right.key,25)
+       # assert_equal(c.root.right.left.key,15)
+        #assert_equal(c.root.right.right.key,30)	
+        
+        
     end
 end
     
